@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Token Comparator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg:#f2f5fa;--surface:#ffffff;--surface-2:#eaeff7;--border:#d6dde9;
+  --fg:#0f172a;--muted:#64748b;--dim:#94a3b8;
+  --accent-a:#1a73e8;--accent-b:#d93025;
+  --success:#16a34a;--danger:#dc2626;--warn:#d97706;
+  --font-mono:'JetBrains Mono',monospace;--font-ui:'DM Sans',system-ui,sans-serif;--r:10px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#0c1018;--surface:#141922;--surface-2:#1a2032;--border:#263046;
+  --fg:#dce5f5;--muted:#7e8fa8;--dim:#465468;--accent-a:#4da6ff;--accent-b:#ff6b6b;
+  --success:#4ade80;--danger:#f87171;--warn:#fbbf24;color-scheme:dark;}
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);min-height:100vh;padding:24px 16px 48px;}
+.header{text-align:center;margin-bottom:18px;}
+.header h1{font-size:1.3rem;font-weight:700;letter-spacing:-0.025em;display:flex;align-items:center;justify-content:center;gap:8px;}
+.badge{background:linear-gradient(135deg,#1a73e8,#d93025);color:#fff;font-family:var(--font-mono);font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:4px;}
+.header p{color:var(--muted);font-size:0.82rem;margin-top:3px;}
+.config{max-width:960px;margin:0 auto 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+.cfg-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px;}
+.cfg-group.key-group{flex:2;}
+.cfg-label{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--dim);}
+.key-row{display:flex;gap:6px;}
+.cfg-input{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--fg);font-family:var(--font-ui);font-size:0.82rem;outline:none;transition:border-color 0.15s;width:100%;}
+.cfg-input:focus{border-color:var(--accent-a);}
+.cfg-input:disabled{opacity:0.45;cursor:not-allowed;}
+select.cfg-input{cursor:pointer;}
+.load-btn{padding:7px 14px;background:var(--surface-2);color:var(--muted);border:1px solid var(--border);border-radius:6px;font-family:var(--font-ui);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:border-color 0.15s,color 0.15s;flex-shrink:0;}
+.load-btn:hover:not(:disabled){border-color:var(--accent-a);color:var(--accent-a);}
+.load-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.run-btn{padding:8px 22px;background:var(--accent-a);color:#fff;border:none;border-radius:6px;font-family:var(--font-ui);font-size:0.85rem;font-weight:600;cursor:pointer;transition:opacity 0.15s,transform 0.1s;align-self:flex-end;white-space:nowrap;}
+.run-btn:hover:not(:disabled){opacity:0.88;}
+.run-btn:active:not(:disabled){transform:scale(0.97);}
+.run-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.key-status{width:100%;font-size:0.68rem;display:none;align-items:center;gap:5px;padding-top:2px;}
+.key-status.show{display:flex;}
+.key-status.warn{color:var(--warn);}
+.key-status.ok{color:var(--success);}
+.key-status.err{color:var(--danger);}
+.key-status.loading{color:var(--warn);}
+.key-hint{width:100%;font-size:0.67rem;color:var(--muted);line-height:1.6;}
+.key-hint a{color:var(--accent-a);text-decoration:none;}
+.key-hint a:hover{text-decoration:underline;}
+.provider-tabs{display:flex;gap:6px;width:100%;}
+.ptab{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--muted);font-family:var(--font-ui);font-size:0.78rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.15s;}
+.ptab.active{background:var(--accent-a);border-color:var(--accent-a);color:#fff;}
+.ptab:hover:not(.active){border-color:var(--accent-a);color:var(--accent-a);}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:960px;margin:0 auto 16px;}
+@media(max-width:640px){.panels{grid-template-columns:1fr;}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;overflow:hidden;}
+.panel-head{display:flex;align-items:center;gap:8px;padding:10px 13px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.pill{font-family:var(--font-mono);font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:20px;color:#fff;letter-spacing:0.05em;}
+.panel-a .pill{background:var(--accent-a);}
+.panel-b .pill{background:var(--accent-b);}
+.panel-name{font-size:0.8rem;font-weight:600;color:var(--muted);}
+.clear-btn{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--dim);font-size:0.72rem;font-family:var(--font-ui);padding:2px 7px;border-radius:4px;transition:color 0.15s,background 0.15s;}
+.clear-btn:hover{color:var(--fg);background:var(--border);}
+textarea{min-height:110px;resize:vertical;border:none;background:var(--surface);color:var(--fg);font-family:var(--font-mono);font-size:0.78rem;line-height:1.65;padding:11px 13px;outline:none;width:100%;border-bottom:1px solid var(--border);}
+.panel-a textarea{caret-color:var(--accent-a);}
+.panel-b textarea{caret-color:var(--accent-b);}
+textarea::placeholder{color:var(--dim);}
+.resp-head{display:flex;align-items:center;justify-content:space-between;padding:7px 13px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+.resp-head-label{font-size:0.63rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--dim);}
+.resp-status{font-size:0.65rem;font-weight:600;}
+.st-idle{color:var(--dim);}.st-loading{color:var(--warn);}.st-done{color:var(--success);}.st-error{color:var(--danger);}
+.resp-body{min-height:140px;max-height:280px;overflow-y:auto;padding:12px 13px;font-size:0.82rem;line-height:1.7;color:var(--fg);background:var(--surface);border-bottom:1px solid var(--border);}
+.resp-body.empty{color:var(--dim);font-style:italic;}
+.resp-body h2,.resp-body h3,.resp-body h4{font-weight:700;margin:8px 0 4px;line-height:1.3;}
+.resp-body h2{font-size:1.05rem;}.resp-body h3{font-size:0.95rem;}.resp-body h4{font-size:0.85rem;}
+.resp-body strong{font-weight:700;}.resp-body em{font-style:italic;}
+.resp-body code{font-family:var(--font-mono);font-size:0.8em;background:var(--surface-2);border:1px solid var(--border);border-radius:3px;padding:1px 4px;}
+.resp-body pre{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:6px 0;}
+.resp-body pre code{background:none;border:none;padding:0;font-size:0.78rem;}
+.resp-body ul,.resp-body ol{padding-left:18px;margin:4px 0;}
+.resp-body li{margin:2px 0;}
+.err-msg{color:var(--danger);font-family:var(--font-mono);font-size:0.78rem;}
+.tok-stats{padding:10px 13px;background:var(--surface-2);display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.tok-stat{text-align:center;}
+.tok-stat-label{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;color:var(--dim);margin-bottom:2px;}
+.tok-stat-val{font-family:var(--font-mono);font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);}
+.panel-a .tok-stat-val.in,.panel-a .tok-stat-val.tot{color:var(--accent-a);}
+.panel-a .tok-stat-val.out{color:var(--accent-a);opacity:0.75;}
+.panel-b .tok-stat-val.in,.panel-b .tok-stat-val.tot{color:var(--accent-b);}
+.panel-b .tok-stat-val.out{color:var(--accent-b);opacity:0.75;}
+.comparison{max-width:960px;margin:0 auto 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px 18px;}
+.cmp-title{font-size:0.63rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:var(--dim);margin-bottom:12px;}
+.cmp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.cstat{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;text-align:center;}
+.cstat-label{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;color:var(--dim);margin-bottom:3px;}
+.cstat-val{font-family:var(--font-mono);font-size:1.1rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);}
+.cstat-val.a{color:var(--accent-a);}.cstat-val.b{color:var(--accent-b);}.cstat-val.eq{color:var(--muted);}
+.ratio-wrap{margin-top:13px;}
+.ratio-row{display:flex;justify-content:space-between;font-size:0.65rem;font-family:var(--font-mono);color:var(--muted);margin-bottom:5px;font-variant-numeric:tabular-nums;}
+.ratio-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden;display:flex;}
+.ratio-a{background:var(--accent-a);height:100%;transition:width 0.4s ease;}
+.ratio-b{background:var(--accent-b);height:100%;flex:1;}
+.verdict{margin-top:10px;font-size:0.8rem;color:var(--muted);text-align:center;font-style:italic;line-height:1.5;}
+.note{max-width:960px;margin:0 auto;font-size:0.66rem;color:var(--dim);text-align:center;}
+.note span{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:5px 11px;line-height:1.5;}
+.spinner{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:4px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="badge">AI</span> Prompt Response Comparator</h1>
+  <p>Send two prompts to an AI model — compare actual outputs and exact token usage side by side</p>
+</div>
+
+<div class="config">
+
+  <!-- Provider selector -->
+  <div style="width:100%">
+    <div class="cfg-label" style="margin-bottom:6px;">Provider (Free)</div>
+    <div class="provider-tabs">
+      <button class="ptab" id="tab-groq" onclick="switchProvider('groq')">⚡ Groq (Recommended — Free)</button>
+      <button class="ptab" id="tab-gemini" onclick="switchProvider('gemini')">✦ Gemini (Free — may hit quota)</button>
+    </div>
+  </div>
+
+  <!-- API Key -->
+  <div class="cfg-group key-group">
+    <label class="cfg-label" for="apikey">API Key</label>
+    <div class="key-row">
+      <input class="cfg-input" type="password" id="apikey" placeholder="Paste your API key…" autocomplete="off">
+      <button class="load-btn" id="load-btn" onclick="loadModels()">Load Models</button>
+    </div>
+  </div>
+
+  <!-- Model -->
+  <div class="cfg-group">
+    <label class="cfg-label" for="model">Model</label>
+    <select class="cfg-input" id="model" disabled>
+      <option value="">— Enter API key first —</option>
+    </select>
+  </div>
+
+  <button class="run-btn" id="run-btn" onclick="runBoth()" disabled>&#9654; Run Both</button>
+
+  <div class="key-status warn show" id="key-warn">&#9888; Select a provider, paste your API key, then click "Load Models"</div>
+  <div class="key-status" id="key-status"></div>
+  <div class="key-hint" id="key-hint">
+    ⚡ <strong>Groq (recommended):</strong> Free, fast, generous limits →
+    <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → "Create API Key"
+  </div>
+</div>
+
+<div class="panels">
+  <div class="panel panel-a">
+    <div class="panel-head">
+      <span class="pill">A</span><span class="panel-name">Prompt A</span>
+      <button class="clear-btn" onclick="clearPanel('a')">Clear</button>
+    </div>
+    <textarea id="ta" placeholder="Enter Prompt A here…" spellcheck="false"></textarea>
+    <div class="resp-head">
+      <span class="resp-head-label">AI Response</span>
+      <span class="resp-status st-idle" id="st-a">—</span>
+    </div>
+    <div class="resp-body empty" id="resp-a">Response will appear here after running…</div>
+    <div class="tok-stats">
+      <div class="tok-stat"><div class="tok-stat-label">Input Tokens</div><div class="tok-stat-val in" id="in-a">—</div></div>
+      <div class="tok-stat"><div class="tok-stat-label">Output Tokens</div><div class="tok-stat-val out" id="out-a">—</div></div>
+      <div class="tok-stat"><div class="tok-stat-label">Total</div><div class="tok-stat-val tot" id="tot-a">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel panel-b">
+    <div class="panel-head">
+      <span class="pill">B</span><span class="panel-name">Prompt B</span>
+      <button class="clear-btn" onclick="clearPanel('b')">Clear</button>
+    </div>
+    <textarea id="tb" placeholder="Enter Prompt B here…" spellcheck="false"></textarea>
+    <div class="resp-head">
+      <span class="resp-head-label">AI Response</span>
+      <span class="resp-status st-idle" id="st-b">—</span>
+    </div>
+    <div class="resp-body empty" id="resp-b">Response will appear here after running…</div>
+    <div class="tok-stats">
+      <div class="tok-stat"><div class="tok-stat-label">Input Tokens</div><div class="tok-stat-val in" id="in-b">—</div></div>
+      <div class="tok-stat"><div class="tok-stat-label">Output Tokens</div><div class="tok-stat-val out" id="out-b">—</div></div>
+      <div class="tok-stat"><div class="tok-stat-label">Total</div><div class="tok-stat-val tot" id="tot-b">—</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="comparison">
+  <div class="cmp-title">Token Comparison (exact from API)</div>
+  <div class="cmp-grid">
+    <div class="cstat"><div class="cstat-label">Input Diff</div><div class="cstat-val eq" id="c-in">—</div></div>
+    <div class="cstat"><div class="cstat-label">Output Diff</div><div class="cstat-val eq" id="c-out">—</div></div>
+    <div class="cstat"><div class="cstat-label">Total Winner</div><div class="cstat-val eq" id="c-winner">—</div></div>
+  </div>
+  <div class="ratio-wrap">
+    <div class="ratio-row"><span id="rl-a">Prompt A</span><span id="rl-b">Prompt B</span></div>
+    <div class="ratio-track">
+      <div class="ratio-a" id="ratio-a" style="width:50%"></div>
+      <div class="ratio-b"></div>
+    </div>
+  </div>
+  <div class="verdict" id="verdict">Run both prompts to see the comparison.</div>
+</div>
+
+<div class="note">
+  <span>&#128274; API key is used only in your browser and never stored anywhere. Token counts are exact values from the API.</span>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const results = { a: null, b: null };
+let currentProvider = 'groq'; // default
+
+// ── Provider config ────────────────────────────────────────────────────────
+const PROVIDERS = {
+  groq: {
+    name: 'Groq',
+    listUrl: function(key) {
+      return 'https://api.groq.com/openai/v1/models';
+    },
+    listHeaders: function(key) {
+      return { 'Authorization': 'Bearer ' + key };
+    },
+    parseModels: function(data) {
+      const models = (data.data || []).filter(function(m) {
+        // Groq: only LLM chat models — skip whisper, tts, guard, tool models
+        const id = (m.id || '').toLowerCase();
+        return !(/whisper|tts|guard|tool|vision|embed|rerank/.test(id));
+      });
+      // Sort: versatile first, then by name
+      models.sort(function(a, b) {
+        const av = a.id.includes('versatile') ? 0 : a.id.includes('instant') ? 1 : 2;
+        const bv = b.id.includes('versatile') ? 0 : b.id.includes('instant') ? 1 : 2;
+        return av - bv || a.id.localeCompare(b.id);
+      });
+      return models.map(function(m) {
+        return { value: m.id, label: m.id };
+      });
+    },
+    call: async function(key, prompt, model) {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      if (!resp.ok) {
+        let msg = 'HTTP ' + resp.status;
+        try { const e = await resp.json(); msg = (e.error && (e.error.message || e.error)) || msg; } catch(x) {}
+        throw new Error(msg);
+      }
+      const data = await resp.json();
+      const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      const usage = data.usage || {};
+      return { text, inTok: usage.prompt_tokens || 0, outTok: usage.completion_tokens || 0 };
+    },
+    hint: '⚡ <strong>Groq (recommended):</strong> Free, fast, generous limits → <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> → "Create API Key"'
+  },
+  gemini: {
+    name: 'Gemini',
+    listUrl: function(key) {
+      return 'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key);
+    },
+    listHeaders: function(key) { return {}; },
+    parseModels: function(data) {
+      const all = data.models || [];
+      const usable = all.filter(function(m) {
+        if (!m.supportedGenerationMethods || m.supportedGenerationMethods.indexOf('generateContent') === -1) return false;
+        const id = (m.name || '').replace('models/', '').toLowerCase();
+        if (/embedding|aqa|retrieval|attribute|computer-use|image-generation|video/.test(id)) return false;
+        if (!/gemini-\d/.test(id)) return false;
+        return true;
+      });
+      const pref = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+      usable.sort(function(a, b) {
+        const ia = a.name.replace('models/', ''), ib = b.name.replace('models/', '');
+        const pa = pref.findIndex(function(p) { return ia.startsWith(p); });
+        const pb = pref.findIndex(function(p) { return ib.startsWith(p); });
+        if (pa !== -1 && pb === -1) return -1;
+        if (pb !== -1 && pa === -1) return 1;
+        if (pa !== -1 && pb !== -1) return pa - pb;
+        return ia.localeCompare(ib);
+      });
+      return usable.map(function(m) {
+        const id = m.name.replace('models/', '');
+        return { value: id, label: m.displayName || id };
+      });
+    },
+    call: async function(key, prompt, model) {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+      });
+      if (!resp.ok) {
+        let msg = 'HTTP ' + resp.status;
+        try { const e = await resp.json(); msg = (e.error && e.error.message) || msg; } catch(x) {}
+        throw new Error(msg);
+      }
+      const data = await resp.json();
+      const text = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) || '';
+      const usage = data.usageMetadata || {};
+      return { text, inTok: usage.promptTokenCount || 0, outTok: usage.candidatesTokenCount || 0 };
+    },
+    hint: '✦ <strong>Gemini:</strong> Free tier (may hit daily quota) → <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> → "Create API key"'
+  }
+};
+
+// ── Provider switch ────────────────────────────────────────────────────────
+function switchProvider(p) {
+  currentProvider = p;
+  document.getElementById('tab-groq').classList.toggle('active', p === 'groq');
+  document.getElementById('tab-gemini').classList.toggle('active', p === 'gemini');
+  document.getElementById('key-hint').innerHTML = PROVIDERS[p].hint;
+  // Reset model dropdown
+  const sel = document.getElementById('model');
+  sel.innerHTML = '<option value="">— Enter API key first —</option>';
+  sel.disabled = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('apikey').value = '';
+  document.getElementById('apikey').placeholder = 'Paste your ' + PROVIDERS[p].name + ' API key…';
+  document.getElementById('key-warn').classList.add('show');
+  document.getElementById('key-status').classList.remove('show');
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderMd(text) {
+  let s = esc(text);
+  s = s.replace(/```(?:[^\n]*)?\n([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trimEnd()}</code></pre>`);
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  s = s.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  s = s.replace(/^[-•] (.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
+function fmt(n) { return Number(n).toLocaleString(); }
+
+function setStatus(p, cls, html) {
+  const el = document.getElementById('st-' + p);
+  el.className = 'resp-status ' + cls;
+  el.innerHTML = html;
+}
+
+function showKeyStatus(cls, html) {
+  document.getElementById('key-warn').classList.remove('show');
+  const el = document.getElementById('key-status');
+  el.className = 'key-status ' + cls + ' show';
+  el.innerHTML = html;
+}
+
+// ── Load models ────────────────────────────────────────────────────────────
+async function loadModels() {
+  const apiKey = document.getElementById('apikey').value.trim();
+  if (!apiKey) {
+    document.getElementById('key-warn').classList.add('show');
+    document.getElementById('apikey').focus();
+    return;
+  }
+  document.getElementById('key-warn').classList.remove('show');
+
+  const prov = PROVIDERS[currentProvider];
+  const sel = document.getElementById('model');
+  const loadBtn = document.getElementById('load-btn');
+  sel.disabled = true;
+  loadBtn.disabled = true;
+  sel.innerHTML = '<option value="">⏳ Loading models…</option>';
+  showKeyStatus('loading', '<span class="spinner"></span>Fetching available models…');
+
+  try {
+    const resp = await fetch(prov.listUrl(apiKey), { headers: prov.listHeaders(apiKey) });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const msg = (data.error && (data.error.message || data.error)) || ('HTTP ' + resp.status);
+      throw new Error(msg);
+    }
+
+    const models = prov.parseModels(data);
+    if (models.length === 0) throw new Error('No chat models found for this API key.');
+
+    sel.innerHTML = '';
+    models.forEach(function(m) {
+      const opt = document.createElement('option');
+      opt.value = m.value;
+      opt.textContent = m.label;
+      sel.appendChild(opt);
+    });
+
+    sel.disabled = false;
+    loadBtn.disabled = false;
+    document.getElementById('run-btn').disabled = false;
+    showKeyStatus('ok', '&#10003; ' + models.length + ' model' + (models.length !== 1 ? 's' : '') + ' loaded — ready to run');
+
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Failed to load models —</option>';
+    sel.disabled = false;
+    loadBtn.disabled = false;
+    showKeyStatus('err', '&#10005; ' + esc(e.message));
+  }
+}
+
+// Enter key in API field triggers load
+document.getElementById('apikey').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') loadModels();
+});
+
+// ── Token display ──────────────────────────────────────────────────────────
+function updateTokens(p, inTok, outTok) {
+  document.getElementById('in-' + p).textContent  = fmt(inTok);
+  document.getElementById('out-' + p).textContent = fmt(outTok);
+  document.getElementById('tot-' + p).textContent = fmt(inTok + outTok);
+  results[p] = { inTok, outTok, total: inTok + outTok };
+  updateComparison();
+}
+
+function updateComparison() {
+  const a = results.a, b = results.b;
+  if (!a || !b) return;
+
+  const inDiff = Math.abs(a.inTok - b.inTok), inWin = a.inTok <= b.inTok ? 'a' : 'b';
+  const cinEl = document.getElementById('c-in');
+  cinEl.textContent = inDiff === 0 ? 'Equal' : fmt(inDiff) + ' fewer → ' + inWin.toUpperCase();
+  cinEl.className = 'cstat-val ' + (inDiff === 0 ? 'eq' : inWin);
+
+  const outDiff = Math.abs(a.outTok - b.outTok), outWin = a.outTok <= b.outTok ? 'a' : 'b';
+  const coutEl = document.getElementById('c-out');
+  coutEl.textContent = outDiff === 0 ? 'Equal' : fmt(outDiff) + ' fewer → ' + outWin.toUpperCase();
+  coutEl.className = 'cstat-val ' + (outDiff === 0 ? 'eq' : outWin);
+
+  const totDiff = Math.abs(a.total - b.total), totWin = a.total <= b.total ? 'a' : 'b', totLose = totWin === 'a' ? 'b' : 'a';
+  const cwEl = document.getElementById('c-winner');
+  cwEl.textContent = totDiff === 0 ? 'Tie' : 'Prompt ' + totWin.toUpperCase();
+  cwEl.className = 'cstat-val ' + (totDiff === 0 ? 'eq' : totWin);
+
+  const total = a.total + b.total, rA = total ? (a.total / total) * 100 : 50;
+  document.getElementById('ratio-a').style.width = rA + '%';
+  document.getElementById('rl-a').textContent = 'A — ' + fmt(a.total) + ' tokens';
+  document.getElementById('rl-b').textContent = 'B — ' + fmt(b.total) + ' tokens';
+
+  if (totDiff === 0) {
+    document.getElementById('verdict').textContent = 'Both prompts used the same total tokens (' + fmt(a.total) + ').';
+  } else {
+    const pct = Math.round((totDiff / Math.min(a.total, b.total)) * 100);
+    document.getElementById('verdict').textContent =
+      'Prompt ' + totWin.toUpperCase() + ' used ' + fmt(totDiff) + ' fewer total tokens than Prompt ' +
+      totLose.toUpperCase() + ' — ' + pct + '% more efficient.';
+  }
+}
+
+// ── Panel runner ───────────────────────────────────────────────────────────
+async function runPanel(panel, apiKey, prompt, model) {
+  const respEl = document.getElementById('resp-' + panel);
+  respEl.className = 'resp-body';
+  respEl.innerHTML = '';
+  setStatus(panel, 'st-loading', '<span class="spinner"></span>Thinking…');
+
+  const { text, inTok, outTok } = await PROVIDERS[currentProvider].call(apiKey, prompt, model);
+
+  respEl.innerHTML = renderMd(text) || '<em style="color:var(--dim)">No response</em>';
+  setStatus(panel, 'st-done', '&#10003; Done');
+  updateTokens(panel, inTok, outTok);
+}
+
+// ── Run both ───────────────────────────────────────────────────────────────
+async function runBoth() {
+  const apiKey = document.getElementById('apikey').value.trim();
+  if (!apiKey) { document.getElementById('key-warn').classList.add('show'); return; }
+  const model = document.getElementById('model').value;
+  if (!model) { showKeyStatus('err', '&#9888; Load models first'); return; }
+
+  const ta = document.getElementById('ta').value.trim();
+  const tb = document.getElementById('tb').value.trim();
+  if (!ta && !tb) return;
+
+  results.a = null; results.b = null;
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = 'Running…';
+
+  ['c-in','c-out','c-winner'].forEach(function(id) {
+    document.getElementById(id).textContent = '—';
+    document.getElementById(id).className = 'cstat-val eq';
+  });
+  document.getElementById('verdict').textContent = 'Running…';
+  document.getElementById('ratio-a').style.width = '50%';
+  document.getElementById('rl-a').textContent = 'Prompt A';
+  document.getElementById('rl-b').textContent = 'Prompt B';
+
+  const tasks = [];
+  if (ta) tasks.push(
+    runPanel('a', apiKey, ta, model).catch(function(err) {
+      document.getElementById('resp-a').innerHTML = '<span class="err-msg">Error: ' + esc(err.message) + '</span>';
+      setStatus('a', 'st-error', '&#10005; Error');
+    })
+  ); else setStatus('a', 'st-idle', '—');
+
+  if (tb) tasks.push(
+    runPanel('b', apiKey, tb, model).catch(function(err) {
+      document.getElementById('resp-b').innerHTML = '<span class="err-msg">Error: ' + esc(err.message) + '</span>';
+      setStatus('b', 'st-error', '&#10005; Error');
+    })
+  ); else setStatus('b', 'st-idle', '—');
+
+  await Promise.all(tasks);
+  btn.disabled = false; btn.textContent = '▶ Run Both';
+}
+
+// ── Clear panel ────────────────────────────────────────────────────────────
+function clearPanel(p) {
+  document.getElementById('t' + p).value = '';
+  const r = document.getElementById('resp-' + p);
+  r.className = 'resp-body empty';
+  r.innerHTML = 'Response will appear here after running…';
+  setStatus(p, 'st-idle', '—');
+  ['in','out','tot'].forEach(function(k) { document.getElementById(k + '-' + p).textContent = '—'; });
+  results[p] = null;
+  updateComparison();
+}
+
+// Init — default to Groq
+switchProvider('groq');
+</script>
+</body>
+</html>
